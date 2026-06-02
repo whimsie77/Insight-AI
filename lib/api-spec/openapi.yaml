@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AnalystGPT API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: insights
+    description: AI insight generation
 paths:
   /healthz:
     get:
@@ -24,6 +26,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /generate-insight:
+    post:
+      operationId: generateInsight
+      tags: [insights]
+      summary: Generate AI insights from dataset summary
+      description: Sends dataset summary to Claude API and returns structured insights and recommendations in Bahasa Indonesia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasetSummaryInput"
+      responses:
+        "200":
+          description: AI insights generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI service unavailable, returns mock insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +68,140 @@ components:
       required:
         - status
 
+    ColumnSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [numeric, categorical, date, unknown]
+        null_pct:
+          type: number
+        unique_count:
+          type: integer
+        top_values:
+          type: array
+          items:
+            type: string
+        mean:
+          type: ["number", "null"]
+        min:
+          type: ["number", "null"]
+        max:
+          type: ["number", "null"]
+      required:
+        - name
+        - type
+        - null_pct
+        - unique_count
+        - top_values
+
+    DatasetSummaryInput:
+      type: object
+      properties:
+        filename:
+          type: string
+        row_count:
+          type: integer
+        col_count:
+          type: integer
+        quality_score:
+          type: number
+        duplicate_rows:
+          type: integer
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnSummary"
+      required:
+        - filename
+        - row_count
+        - col_count
+        - quality_score
+        - duplicate_rows
+        - columns
+
+    Insight:
+      type: object
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [Trend, Anomali, Peluang, Risiko, Informasi]
+        title:
+          type: string
+        description:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        priority:
+          type: string
+          enum: [tinggi, sedang, rendah]
+        expected_impact:
+          type: string
+      required:
+        - id
+        - category
+        - title
+        - description
+        - confidence
+        - priority
+        - expected_impact
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        action:
+          type: string
+        priority:
+          type: string
+          enum: [tinggi, sedang, rendah]
+      required:
+        - id
+        - title
+        - description
+        - action
+        - priority
+
+    InsightResult:
+      type: object
+      properties:
+        insights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Insight"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        generated_at:
+          type: string
+        source:
+          type: string
+          enum: [claude, mock]
+      required:
+        - insights
+        - recommendations
+        - generated_at
+        - source
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message

@@ -1,45 +1,72 @@
-# [Project name]
+# AnalystGPT
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Platform SaaS AI untuk mengubah file CSV/Excel menjadi insight bisnis, dashboard otomatis, dan laporan eksekutif — seluruhnya dalam Bahasa Indonesia.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — jalankan API server (port 8080)
+- `pnpm --filter @workspace/analyst-gpt run dev` — jalankan frontend (port dari env PORT)
+- `pnpm run typecheck` — full typecheck semua package
+- `pnpm run build` — typecheck + build semua package
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks dan Zod schemas dari OpenAPI spec
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS + shadcn/ui + Recharts
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
+- AI: Anthropic Claude (server-side via ANTHROPIC_API_KEY)
+- File parsing: papaparse (CSV), xlsx (Excel) — client-side
+- PDF export: jsPDF + jspdf-autotable
+- Validasi: Zod (`zod/v4`)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — sumber kebenaran API contract
+- `lib/api-client-react/src/generated/` — React Query hooks hasil codegen
+- `lib/api-zod/src/generated/` — Zod schemas hasil codegen
+- `artifacts/analyst-gpt/src/` — frontend React
+  - `pages/landing.tsx` — halaman upload
+  - `pages/dashboard.tsx` — halaman dashboard utama
+  - `hooks/use-dataset.ts` — types + context (tanpa JSX)
+  - `hooks/dataset-provider.tsx` — DatasetProvider JSX component
+  - `lib/data-processing.ts` — parsing CSV/Excel, profiling kolom, IQR outlier detection
+  - `lib/pdf-export.ts` — ekspor PDF profesional
+  - `components/dashboard/` — tab Ringkasan, Grafik, AI Insights
+- `artifacts/api-server/src/routes/insight.ts` — endpoint /api/generate-insight (Claude + mock fallback)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- File parsing 100% client-side (papaparse + xlsx) — hanya summary yang dikirim ke server
+- Insight generation menggunakan Claude API server-side; jika `ANTHROPIC_API_KEY` tidak ada, fallback ke mock insight realistis
+- DatasetProvider di JSX `.tsx` terpisah dari types/hooks `.ts` untuk menghindari esbuild error
+- Google Fonts @import url() harus menjadi baris PERTAMA di index.css sebelum @import "tailwindcss"
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Upload CSV/XLSX dengan drag-and-drop, max 50MB
+- Auto-profiling: deteksi tipe kolom, null count, unique count, outlier (IQR), Data Quality Score 0-100
+- Dashboard 3 tab: Ringkasan (profiling tabel), Grafik (4-6 chart Recharts otomatis), AI Insights
+- Tombol "Coba Dataset Demo" memuat dataset penjualan demo 200 baris
+- Export PDF laporan eksekutif profesional (jsPDF)
+- Seluruh UI, label, dan pesan error dalam Bahasa Indonesia
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Seluruh UI dalam Bahasa Indonesia
+- Design: premium SaaS modern, background #F8FAFC, primary blue #2563EB, dark navy #0F172A
+- Font Inter, rounded corners 8px, subtle shadows
+- Tidak ada emoji di UI
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Selalu jalankan codegen setelah mengubah openapi.yaml: `pnpm --filter @workspace/api-spec run codegen`
+- File JSX harus berekstensi `.tsx`, bukan `.ts` — esbuild akan error jika ada JSX di file `.ts`
+- Google Fonts `@import url(...)` WAJIB menjadi baris pertama di index.css (sebelum `@import "tailwindcss"`)
+- `ANTHROPIC_API_KEY` env var dibutuhkan di API server untuk Claude; tanpa itu, sistem auto-fallback ke mock insight
+- Jangan expose API key ke client — hanya server yang mengakses Claude
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Lihat `pnpm-workspace` skill untuk struktur workspace, TypeScript setup, dan detail package
