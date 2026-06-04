@@ -96,7 +96,7 @@ function calculateColumnProfile(name: string, values: any[], type: ColumnType): 
   };
 }
 
-export async function processFile(file: File): Promise<DatasetProfile> {
+export async function processFile(file: File): Promise<{ profile: DatasetProfile; rawData: Record<string, string>[] }> {
   if (file.size > 50 * 1024 * 1024) {
     throw new DataProcessingError("Ukuran file melebihi batas 50MB.");
   }
@@ -160,7 +160,7 @@ export async function processFile(file: File): Promise<DatasetProfile> {
   let qualityScore = 100 - (nullRatio * 40) - (dupRatio * 30) - (outlierPenalty * 30);
   qualityScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
 
-  const preview = data.slice(0, 10).map(row => {
+  const rawData: Record<string, string>[] = data.map(row => {
     const newRow: Record<string, string> = {};
     for (const key in row) {
       newRow[key] = String(row[key] ?? "");
@@ -168,20 +168,25 @@ export async function processFile(file: File): Promise<DatasetProfile> {
     return newRow;
   });
 
+  const preview = rawData.slice(0, 10);
+
   return {
-    filename: file.name,
-    fileSize: file.size,
-    rowCount,
-    colCount,
-    missingValues,
-    duplicateRows,
-    qualityScore,
-    columns,
-    preview
+    profile: {
+      filename: file.name,
+      fileSize: file.size,
+      rowCount,
+      colCount,
+      missingValues,
+      duplicateRows,
+      qualityScore,
+      columns,
+      preview,
+    },
+    rawData,
   };
 }
 
-export function generateDemoDataset(): DatasetProfile {
+export function generateDemoDataset(): { profile: DatasetProfile; rawData: Record<string, string>[] } {
   const rowCount = 200;
   const data: any[] = [];
   const products = ["Laptop Pro X", "Smartphone Y", "Wireless Earbuds", "Smartwatch Z", "Tablet Mini"];
@@ -211,7 +216,7 @@ export function generateDemoDataset(): DatasetProfile {
     columns.push(calculateColumnProfile(colName, values, type));
   }
 
-  const preview = data.slice(0, 10).map(row => {
+  const rawData: Record<string, string>[] = data.map(row => {
     const newRow: Record<string, string> = {};
     for (const key in row) {
       newRow[key] = String(row[key] ?? "");
@@ -219,15 +224,20 @@ export function generateDemoDataset(): DatasetProfile {
     return newRow;
   });
 
+  const preview = rawData.slice(0, 10);
+
   return {
-    filename: "demo-penjualan.csv",
-    fileSize: 1024 * 45,
-    rowCount,
-    colCount: colNames.length,
-    missingValues: 0,
-    duplicateRows: 0,
-    qualityScore: 95,
-    columns,
-    preview
+    profile: {
+      filename: "demo-penjualan.csv",
+      fileSize: 1024 * 45,
+      rowCount,
+      colCount: colNames.length,
+      missingValues: 0,
+      duplicateRows: 0,
+      qualityScore: 95,
+      columns,
+      preview,
+    },
+    rawData,
   };
 }

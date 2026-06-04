@@ -45,13 +45,13 @@ export default function SummaryTab({ profile }: { profile: DatasetProfile }) {
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'numeric':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Numerik</Badge>;
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">Numerik</Badge>;
       case 'categorical':
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Kategorikal</Badge>;
+        return <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">Kategorikal</Badge>;
       case 'date':
-        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Tanggal</Badge>;
+        return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Tanggal</Badge>;
       default:
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Unknown</Badge>;
+        return <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/20">Unknown</Badge>;
     }
   };
 
@@ -74,7 +74,7 @@ export default function SummaryTab({ profile }: { profile: DatasetProfile }) {
               </TableHeader>
               <TableBody>
                 {profile.preview.map((row, rowIndex) => (
-                  <TableRow key={rowIndex} className={rowIndex % 2 === 0 ? "bg-white" : "bg-muted/20"}>
+                  <TableRow key={rowIndex} className={rowIndex % 2 === 0 ? "bg-muted/10" : ""}>
                     {profile.columns.map((col, colIndex) => (
                       <TableCell key={colIndex} className="max-w-[200px] truncate" title={row[col.name]}>
                         {row[col.name]}
@@ -142,9 +142,9 @@ export default function SummaryTab({ profile }: { profile: DatasetProfile }) {
                     <TableCell>
                       {col.type === 'numeric' ? (
                         col.hasOutlier ? (
-                          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Terdeteksi</Badge>
+                          <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">Terdeteksi</Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">Normal</Badge>
+                          <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/20">Normal</Badge>
                         )
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>

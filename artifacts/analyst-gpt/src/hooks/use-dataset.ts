@@ -35,6 +35,8 @@ export interface DatasetContextType {
   setInsights: (insights: InsightResult | null) => void;
   rawFile: File | null;
   setRawFile: (file: File | null) => void;
+  rawData: Record<string, string>[] | null;
+  setRawData: (data: Record<string, string>[] | null) => void;
 }
 
 export const DatasetContext = createContext<DatasetContextType | undefined>(undefined);

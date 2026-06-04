@@ -1,5 +1,5 @@
 import { Router } from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import { InferenceClient } from "@huggingface/inference";
 import { GenerateInsightBody } from "@workspace/api-zod";
 
 const router = Router();
@@ -136,36 +136,26 @@ router.post("/generate-insight", async (req, res) => {
   }
 
   const summary = parseResult.data;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.HF_TOKEN;
 
   if (!apiKey) {
-    req.log.info("ANTHROPIC_API_KEY not set, returning mock insights");
+    req.log.info("HF_TOKEN not set, returning mock insights");
     const { insights, recommendations } = generateMockInsights(summary);
-    res.json({
-      insights,
-      recommendations,
-      generated_at: new Date().toISOString(),
-      source: "mock",
-    });
+    res.json({ insights, recommendations, generated_at: new Date().toISOString(), source: "mock" });
     return;
   }
 
-  try {
-    const client = new Anthropic({ apiKey });
+  const columnDescriptions = summary.columns
+    .map((col) => {
+      const extras =
+        col.type === "numeric"
+          ? `, rata-rata: ${col.mean?.toFixed(2) ?? "N/A"}, min: ${col.min?.toFixed(2) ?? "N/A"}, maks: ${col.max?.toFixed(2) ?? "N/A"}`
+          : `, nilai teratas: ${col.top_values.slice(0, 3).join(", ")}`;
+      return `- ${col.name} (${col.type}): null ${col.null_pct.toFixed(1)}%, unik: ${col.unique_count}${extras}`;
+    })
+    .join("\n");
 
-    const columnDescriptions = summary.columns
-      .map((col) => {
-        const extras =
-          col.type === "numeric"
-            ? `, rata-rata: ${col.mean?.toFixed(2) ?? "N/A"}, min: ${col.min?.toFixed(2) ?? "N/A"}, maks: ${col.max?.toFixed(2) ?? "N/A"}`
-            : `, nilai teratas: ${col.top_values.slice(0, 3).join(", ")}`;
-        return `- ${col.name} (${col.type}): null ${col.null_pct.toFixed(1)}%, unik: ${col.unique_count}${extras}`;
-      })
-      .join("\n");
-
-    const prompt = `Kamu adalah analis data bisnis senior yang memberikan insight strategis dalam Bahasa Indonesia.
-
-Dataset: ${summary.filename}
+  const userPrompt = `Dataset: ${summary.filename}
 Jumlah baris: ${summary.row_count.toLocaleString("id-ID")}
 Jumlah kolom: ${summary.col_count}
 Skor kualitas data: ${summary.quality_score.toFixed(1)}/100
@@ -174,47 +164,39 @@ Baris duplikat: ${summary.duplicate_rows}
 Ringkasan kolom:
 ${columnDescriptions}
 
-Berikan analisis dalam format JSON berikut. WAJIB dalam Bahasa Indonesia:
+Berikan tepat 4-5 insights dan 2-3 rekomendasi. Balas HANYA dengan JSON berikut, tanpa teks lain:
 {
   "insights": [
-    {
-      "id": "insight-1",
-      "category": "Trend" | "Anomali" | "Peluang" | "Risiko" | "Informasi",
-      "title": "judul singkat dan informatif",
-      "description": "penjelasan detail minimal 2 kalimat tentang temuan ini",
-      "confidence": 0.0-1.0,
-      "priority": "tinggi" | "sedang" | "rendah",
-      "expected_impact": "dampak bisnis yang diharapkan jika insight ini ditindaklanjuti"
-    }
+    {"id":"insight-1","category":"Trend","title":"...","description":"...","confidence":0.85,"priority":"tinggi","expected_impact":"..."}
   ],
   "recommendations": [
-    {
-      "id": "rec-1",
-      "title": "judul rekomendasi aksi",
-      "description": "penjelasan mengapa rekomendasi ini penting",
-      "action": "langkah konkret yang harus diambil",
-      "priority": "tinggi" | "sedang" | "rendah"
-    }
+    {"id":"rec-1","title":"...","description":"...","action":"...","priority":"tinggi"}
   ]
 }
+category harus salah satu: Trend, Anomali, Peluang, Risiko, Informasi
+priority harus salah satu: tinggi, sedang, rendah
+Semua teks dalam Bahasa Indonesia.`;
 
-Berikan tepat 4-5 insights dan 2-3 rekomendasi. Fokus pada nilai bisnis yang actionable.`;
-
-    const message = await client.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
+  try {
+    const client = new InferenceClient(apiKey);
+    const response = await client.chatCompletion({
+      model: "Qwen/Qwen2.5-72B-Instruct",
+      messages: [
+        {
+          role: "system",
+          content: "Kamu adalah analis data bisnis senior. Selalu balas dengan JSON murni yang valid, tanpa markdown, tanpa teks tambahan apapun.",
+        },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 2048,
+      temperature: 0.3,
     });
 
-    const content = message.content[0];
-    if (content.type !== "text") {
-      throw new Error("Unexpected response type from Claude");
-    }
+    const text = response.choices[0]?.message?.content ?? "";
+    req.log.info({ textLength: text.length }, "HuggingFace response received");
 
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in Claude response");
-    }
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error(`No JSON in HuggingFace response. Raw: ${text.substring(0, 200)}`);
 
     const parsed = JSON.parse(jsonMatch[0]);
 
@@ -222,17 +204,12 @@ Berikan tepat 4-5 insights dan 2-3 rekomendasi. Fokus pada nilai bisnis yang act
       insights: parsed.insights ?? [],
       recommendations: parsed.recommendations ?? [],
       generated_at: new Date().toISOString(),
-      source: "claude",
+      source: "huggingface",
     });
   } catch (err) {
-    req.log.error({ err }, "Claude API error, falling back to mock insights");
+    req.log.error({ err }, "HuggingFace API error, falling back to mock insights");
     const { insights, recommendations } = generateMockInsights(summary);
-    res.json({
-      insights,
-      recommendations,
-      generated_at: new Date().toISOString(),
-      source: "mock",
-    });
+    res.json({ insights, recommendations, generated_at: new Date().toISOString(), source: "mock" });
   }
 });
 

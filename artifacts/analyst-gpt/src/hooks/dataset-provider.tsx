@@ -7,6 +7,7 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<DatasetProfile | null>(null);
   const [insights, setInsights] = useState<InsightResult | null>(null);
   const [rawFile, setRawFile] = useState<File | null>(null);
+  const [rawData, setRawData] = useState<Record<string, string>[] | null>(null);
 
   return (
     <DatasetContext.Provider
@@ -17,6 +18,8 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
         setInsights,
         rawFile,
         setRawFile,
+        rawData,
+        setRawData,
       }}
     >
       {children}
