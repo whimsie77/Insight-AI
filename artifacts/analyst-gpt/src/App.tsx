@@ -9,9 +9,11 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "./pages/landing";
 import DashboardPage from "./pages/dashboard";
 
-// In production, point API calls at the deployed backend URL
-const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
-if (apiUrl) setBaseUrl(apiUrl);
+// Point API calls at the deployed backend, with Render URL as fallback
+const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  "https://insight-ai-f2nh.onrender.com";
+setBaseUrl(API_URL);
 
 const queryClient = new QueryClient();
 
